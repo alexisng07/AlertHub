@@ -1,58 +1,221 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# AlertHub
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+AlertHub is a multi-tenant alert management system built with Laravel. It allows organizations to manage projects, subscribers, alert rules, webhook sources, and notification delivery through a pipeline-based architecture.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+* Multi-tenant architecture using organization API tokens
+* Project management APIs
+* Subscriber management APIs
+* Alert rule management
+* Webhook source management
+* Secure webhook ingestion using HMAC SHA-256 signature verification
+* Notification processing using a pipeline pattern
+* Queue-based notification dispatching
+* Feature tests covering critical workflows and edge cases
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Tech Stack
 
-## Learning Laravel
+* PHP 8.4
+* Laravel 13
+* MySQL
+* Redis
+* Docker & Docker Compose
+* PHPUnit
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Getting Started
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Start the application
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+docker compose up -d
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Install Composer dependencies
 
-## Contributing
+```bash
+docker exec -it alerthub_app composer install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Copy environment configuration
 
-## Code of Conduct
+```bash
+docker exec -it alerthub_app cp .env.example .env
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Generate application key
 
-## Security Vulnerabilities
+```bash
+docker exec -it alerthub_app php artisan key:generate
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Run database migrations and seeders
 
-## License
+```bash
+docker exec -it alerthub_app php artisan migrate --seed
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Start queue worker
+
+```bash
+docker exec -it alerthub_app php artisan queue:work
+```
+
+---
+
+## Running Tests
+
+Execute the full test suite:
+
+```bash
+docker exec -it alerthub_app php artisan test
+```
+
+Expected output:
+
+```text
+PASS  Tests\Feature\AuthenticationTest
+PASS  Tests\Feature\ProjectTest
+PASS  Tests\Feature\SubscriberTest
+PASS  Tests\Feature\AlertRuleTest
+PASS  Tests\Feature\WebhookSourceTest
+PASS  Tests\Feature\WebhookTest
+
+Tests:    11 passed (20 assertions)
+Duration: 0.58s
+```
+
+---
+
+## Authentication
+
+Protected endpoints require an organization API token.
+
+Include the following header:
+
+```text
+Authorization: Bearer {organization_api_token}
+```
+
+---
+
+## Webhook Security
+
+Webhook requests are authenticated using HMAC SHA-256 signatures.
+
+Generate the signature using the raw request body and the webhook source signing secret:
+
+```php
+$signature = hash_hmac(
+    'sha256',
+    $requestBody,
+    $signingSecret
+);
+```
+
+Include the generated signature in the request header:
+
+```text
+X-Signature: {generated_signature}
+```
+
+Requests with invalid or missing signatures will be rejected.
+
+---
+
+## API Workflow
+
+1. Create an organization.
+2. Obtain the organization's API token.
+3. Create a project.
+4. Register subscribers under the project.
+5. Create alert rules for the project.
+6. Configure webhook sources.
+7. Send webhook requests with a valid `X-Signature`.
+8. Notifications are generated and queued for delivery.
+
+---
+
+## Design Decisions
+
+### Multi-tenancy
+
+Multi-tenancy is enforced through middleware using organization API tokens. All protected resources are scoped to the authenticated organization.
+
+### Webhook Verification
+
+Webhook requests are verified using HMAC SHA-256 signatures to ensure payload authenticity and integrity.
+
+### Notification Pipeline
+
+Alert processing is implemented using a pipeline pattern to separate responsibilities such as:
+
+* Rule matching
+* Subscriber matching
+* Notification creation
+* Notification dispatching
+
+This improves maintainability and extensibility.
+
+### Queue Processing
+
+Notifications are dispatched asynchronously using Laravel queues to prevent webhook requests from being blocked by downstream notification delivery.
+
+---
+
+## Feature Tests
+
+The following scenarios are covered by automated tests:
+
+* Requests without authentication are rejected
+* Requests with invalid API tokens are rejected
+* Organizations can only access their own projects
+* Projects can be created successfully
+* Project validation rules are enforced
+* Subscribers can be added to projects
+* Alert rules can be created
+* Webhook sources can be created
+* Webhook requests with valid signatures are accepted
+* Webhook requests with invalid signatures are rejected
+* Webhook processing handles edge cases safely
+
+---
+
+## Assumptions
+
+* Organizations authenticate using API tokens.
+* Webhook clients authenticate using HMAC signatures.
+* Notification delivery is handled asynchronously through Laravel queues.
+* Email is used as the default notification channel in this implementation.
+
+---
+
+## Useful Commands
+
+Clear application cache:
+
+```bash
+docker exec -it alerthub_app php artisan optimize:clear
+```
+
+Access Laravel container shell:
+
+```bash
+docker exec -it alerthub_app sh
+```
+
+View queue worker logs:
+
+```bash
+docker logs -f alerthub_app
+```
+
+Stop the application:
+
+```bash
+docker compose down
+```

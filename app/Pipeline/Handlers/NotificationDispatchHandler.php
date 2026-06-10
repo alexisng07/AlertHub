@@ -12,6 +12,10 @@ class NotificationDispatchHandler extends Handler
 {
     public function handle(array $payload, WebhookSource $source): HandlerState
     {
+        if (! app()->bound('current_subscriber')) {
+            return HandlerState::CONTINUE;
+        }
+
         $subscriber = app('current_subscriber');
         $rules = app('matched_rules');
 

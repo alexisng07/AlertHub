@@ -42,9 +42,9 @@ Route::middleware('tenant')->group(function () {
         'projects/{project}/webhook-sources',
         [WebhookSourceController::class, 'store']
     );
-
-    Route::post(
-        '/webhooks/{project_uuid}/{source_key}',
-        [WebhookController::class, 'handle']
-    );
 });
+
+Route::post(
+    '/webhooks/{project_uuid}/{source_key}',
+    [WebhookController::class, 'handle']
+);
