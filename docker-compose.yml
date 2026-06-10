@@ -1,0 +1,59 @@
+services:
+  app:
+    build: ./docker/php
+    container_name: alerthub_app
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - alerthub
+    expose:
+      - "9000"
+
+  nginx:
+    image: nginx:1.25
+    container_name: alerthub_nginx
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./public:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - alerthub
+
+  mysql:
+    image: mysql:8.0
+    container_name: alerthub_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: alerthub
+      MYSQL_USER: alerthub
+      MYSQL_PASSWORD: secret
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - alerthub
+
+  redis:
+    image: redis:7.2
+    container_name: alerthub_redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - alerthub
+
+volumes:
+  dbdata:
+  redisdata:
+
+networks:
+  alerthub:
+    driver: bridge
