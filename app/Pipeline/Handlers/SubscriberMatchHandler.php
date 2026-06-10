@@ -16,10 +16,17 @@ class SubscriberMatchHandler extends Handler
 
     public function handle(array $payload, WebhookSource $source): HandlerState
     {
-        $subscriber = $this->resolver->resolve(
-            $source->project,
+        $resolver = app(\App\AlertMetrics\SubscriberResolver::class);
+
+        $subscriber = $resolver->resolve(
+            $source->project_id,
             $payload
         );
+
+        // $subscriber = $this->resolver->resolve(
+        //     $source->project,
+        //     $payload
+        // );
 
         if (!$subscriber) {
             $subscriber = Subscriber::create([
